@@ -12,12 +12,18 @@ extension ObfuscationPaths {
     }
 
     static func forExecutable(machOFile machOFileURL: URL, fileRepository: FileRepository = FileManager.default, dependencyNodeLoader: DependencyNodeLoader, obfuscableFilesFilter: ObfuscableFilesFilter, withDependencies: Bool = true) -> ObfuscationPaths {
+        print("__> MachO File URL: \(machOFileURL)")
+        
+        /** 判断是否是MachO文件*/
         guard dependencyNodeLoader.isMachOFile(atURL: machOFileURL) else {
             fatalError("File \(machOFileURL) is not Mach-O file")
         }
+        
+        /** 判断是否是有效的MachO文件*/
         if !dependencyNodeLoader.isMachOExecutable(atURL: machOFileURL) {
             LOGGER.warn("File \(machOFileURL) is not Mach-O executable file. Not-executable files are not useful when obfuscated alone and obfuscator may be unable to resolve their dependencies.")
         }
+        
         var paths = ObfuscationPaths()
         paths.addExecutable(executableURL: machOFileURL,
                             fileRepository: fileRepository,
@@ -41,11 +47,14 @@ extension ObfuscationPaths {
                                         dependencyNodeLoader: DependencyNodeLoader,
                                         obfuscableFilesFilter: ObfuscableFilesFilter,
                                         withDependencies: Bool = true) {
+        print("__> Executable URL DeletingLastPathComponent: \(executableURL.deletingLastPathComponent())")
+        
+        /** MachO文件根目录*/
         let executableDir = executableURL.deletingLastPathComponent()
         let rpathsAccumulator = RpathsAccumulator(executablePath: executableDir)
         var imagesQueue: [URL] = [executableURL]
 
-        while let nextImageURL = imagesQueue.popLast() {
+        while let nextImageURL = imagesQueue.popLast() { /** 遍历MachO文件下所有可以混淆的MachO文件*/
             // Data/NSData leaves much garbage in autoreleasepool that is not refereced and could be freed.
             // This pool is not released automatically in console app during application run time
             // and causes constant growth of memory usage.
@@ -54,14 +63,19 @@ extension ObfuscationPaths {
             // See also https://medium.com/swift2go/autoreleasepool-uses-in-2019-swift-9e8fd7b1cd3f
             autoreleasepool {
                 if obfuscableFilesFilter.isObfuscable(nextImageURL) {
+                    /** 过滤掉能混淆的MachO文件*/
                     obfuscableImages.insert(nextImageURL)
                 } else {
+                    /** 过滤掉不能混淆文件*/
                     unobfuscableDependencies.insert(nextImageURL)
                 }
+                
+                /** 将混淆的Dylib动态库的路径对应起来*/
                 let resolvedLocationPerDylibPath =
                     fileRepository.resolvedDylibLocations(loader: nextImageURL,
                                                           rpathsAccumulator: rpathsAccumulator,
                                                           dependencyNodeLoader: dependencyNodeLoader)
+                
                 if let previouslyResolvedLocationDylibPath = resolvedDylibMapPerImageURL[nextImageURL] {
                     if previouslyResolvedLocationDylibPath != resolvedLocationPerDylibPath {
                         fatalError("Image dylib locations already resolved for \(nextImageURL), subsequent resolution is different. This is unsupported in this version.")
@@ -69,6 +83,7 @@ extension ObfuscationPaths {
                 } else {
                     resolvedDylibMapPerImageURL[nextImageURL] = resolvedLocationPerDylibPath
                 }
+                
                 if withDependencies {
                     let stillUntraversedDependencies =
                         resolvedLocationPerDylibPath.values
@@ -81,6 +96,11 @@ extension ObfuscationPaths {
             }
         }
 
+        print("============== Obfuscable Images ==============")
+        print(obfuscableImages)
+        print("============== End ==============")
+        
+        /** 判断是否是系统的动态库*/
         systemFrameworks = obfuscableImages
             .flatMap { imageURL -> [URL] in
                 resolvedDylibMapPerImageURL[imageURL]?.keys.flatMap { dylibEntry -> [URL] in
@@ -90,5 +110,7 @@ extension ObfuscationPaths {
                 } ?? []
             }
             .uniq
+        
+//        print("__> System Framworks: \(systemFrameworks)")
     }
 }

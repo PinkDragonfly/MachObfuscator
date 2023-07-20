@@ -37,6 +37,8 @@ class Obfuscator {
         LOGGER.info("Will obfuscate \(directoryOrFileURL)")
         LOGGER.info("Looking for dependencies...")
         let paths = time(withTag: "Looking for dependencies") { () -> ObfuscationPaths in
+            print("Looking for dependencies IS Directory: \(isDirectory)")
+            
             if isDirectory {
                 return ObfuscationPaths.forAllExecutables(inDirectory: directoryOrFileURL,
                                                           dependencyNodeLoader: loader,
@@ -49,6 +51,10 @@ class Obfuscator {
                                                       withDependencies: options.analyzeDependencies)
             }
         }
+        
+        /** 返回可以混淆的Images*/
+        debugPrint("__> Obfuscable images: \(paths.obfuscableImages)")
+        
         LOGGER.info("\(paths.obfuscableImages.count) obfuscable images")
         LOGGER.debug("Obfuscable images:")
         paths.obfuscableImages.forEach { u in LOGGER.debug(u.absoluteString) }
@@ -56,6 +62,7 @@ class Obfuscator {
 
         LOGGER.info("Collecting symbols...")
 
+//        print("__> Options FindSymbols: \(options.findSymbols)")
         options.findSymbols.forEach {
             LOGGER.info("\($0) found in \(ObfuscationSymbols.findSymbol(obfuscationPaths: paths, loader: loader, symbol: $0))")
         }

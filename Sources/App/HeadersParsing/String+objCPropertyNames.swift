@@ -10,26 +10,36 @@ let spacesAndAsterisks = CharacterSet.whitespacesAndNewlines
 
 extension String {
     var objCPropertyNames: [String] {
+        /** 遍历头文件内容*/
         let headerWithoutComments = withoutComments
+//        print("__> Without Comments: \(withoutComments)")
         let allLines = headerWithoutComments.components(separatedBy: ";")
+//        print("__> All Lines: \(allLines)")
         let propertyLines = allLines.filter { $0.contains("@property") }
+//        print("__> Property Lines: \(propertyLines)")
+        
         return propertyLines.flatMap { $0.objCPropertyNameFromPropertyLine }
     }
 
-    private var objCPropertyNameFromPropertyLine: [String] {
+    private var objCPropertyNameFromPropertyLine: [String] { /** 正则匹配属性名称*/
         let propertyBodyRange = objCPropertyBodyRangeFromPropertyLine
         let matcherConfigurations: [(regexp: NSRegularExpression, group: Int)] = [
             (regexp: blockPropertyRegexp, group: 1),
             (regexp: pointerPropertRegexp, group: 1),
         ]
+        
         let matchedNames: [String] = matcherConfigurations.flatMap { c in
-            c.regexp.matches(in: self, options: [], range: propertyBodyRange)
+            return c.regexp.matches(in: self, options: [], range: propertyBodyRange)
                 .map { (match: NSTextCheckingResult) -> String in
-                    self[match.range(at: c.group)]
+                    return self[match.range(at: c.group)]
                 }
         }
+        
+//        print("__> Matched Name: \(matchedNames)")
+        
         if matchedNames.isEmpty {
-            fatalError("Couldn't resolve property name for line: '\(self)'")
+            let propertyCode: String = (self as NSString).substring(with: propertyBodyRange)
+            fatalError("Couldn't resolve property name for line: '\(self)', propertyCode: \(propertyCode), matcherConfigurations: \(matcherConfigurations)")
         }
         if matchedNames.count > 1 {
             fatalError("Property name resolved ambiguously for line: '\(self)'. Matched names: \(matchedNames)")
@@ -44,7 +54,7 @@ extension String {
     }
 
     private var objCPropertyBodyRangeFromPropertyLine: NSRange {
-        let propertyBodyLowerBoundSearchRange = NSRange(location: 0, length: count)
+        let propertyBodyLowerBoundSearchRange = NSRange(location: 0, length: self.count)
         let propertyBodyLowerBound =
             propertyPrefixRegexp.firstMatch(in: self,
                                             options: [],

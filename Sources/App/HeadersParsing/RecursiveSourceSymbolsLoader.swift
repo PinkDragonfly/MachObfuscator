@@ -36,6 +36,7 @@ private extension URL {
 
 private extension ObjectSymbols {
     static func load(url: URL) -> ObjectSymbols {
+        print("__> Object Symbols: \(url)")
         let sourceContents: String
         do {
             sourceContents = try String(contentsOf: url, encoding: .ascii)

@@ -14,23 +14,42 @@ extension ObfuscationSymbols {
                 + skippedSymbolsLists.map(symbolListLoader.load(fromTextFile:))
             ).flatten()
 
+        /** 系统*/
         let systemSources = time(withTag: "systemSources") { try! obfuscationPaths.unobfuscableDependencies.flatMap { try loader.load(forURL: $0) } }
 
+        /** 用户*/
         let userSourcesPerPath = time(withTag: "userSources") { [URL: [SymbolsSource]](uniqueKeysWithValues: obfuscationPaths.obfuscableImages.map { ($0, try! loader.load(forURL: $0)) }) }
         let userSources = userSourcesPerPath.values.flatMap { $0 }
 
+//        print("__> User Sources: \(userSources)")
+        
+        
+        print("==================== Start Show ====================")
+        print("==================== User Selectors ====================")
         let userSelectors = userSources.flatMap { $0.selectors }.uniq
+//        print("__> User Selectors: \(userSelectors)")
+        print("==================== User Classes ====================")
         let userClasses = userSources.flatMap { $0.classNames }.uniq
+        print("==================== User CStrings ====================")
         let userCStrings = userSources.flatMap { $0.cstrings }.uniq
+        print("==================== User DynamicProperties ====================")
         let userDynamicProperties = userSources.flatMap { $0.dynamicPropertyNames }.uniq
-        let systemSelectors = systemSources.flatMap { $0.selectors }.uniq
-        let systemClasses = systemSources.flatMap { $0.classNames }.uniq
-        let systemCStrings = systemSources.flatMap { $0.cstrings }.uniq
-
+        
+        print("==================== System Selectors ====================")
+        var systemSelectors = systemSources.flatMap { $0.selectors }.uniq
+        print("==================== System Classes ====================")
+        var systemClasses = systemSources.flatMap { $0.classNames }.uniq
+        print("==================== System CStrings ====================")
+        var systemCStrings = systemSources.flatMap { $0.cstrings }.uniq
+        print("==================== End ====================")
+        
+        /** 系统头文件符号表*/
         let systemHeaderSymbols = time(withTag: "systemHeaderSymbols") { obfuscationPaths.systemFrameworks
             .concurrentMap(sourceSymbolsLoader.load(fromDirectory:))
             .flatten()
         }
+        
+        print("__> System Header Symbols: \(systemHeaderSymbols)")
 
         // TODO: Array(userCStrings) should be opt-in
         let blackListGetters: Set<String> =
@@ -85,6 +104,10 @@ extension ObfuscationSymbols {
         let blackList = ObjCSymbols(selectors: blacklistSelectors, classes: blacklistClasses)
         let removedList = ObjCSymbols(selectors: userSelectors.intersection(blacklistSelectors), classes: userClasses.intersection(blacklistClasses))
 
+        print("============================ White List Symbols ============================")
+        print(whiteList)
+        print("============================ End ============================")
+        
         return ObfuscationSymbols(whitelist: whiteList, blacklist: blackList, removedList: removedList, exportTriesPerCpuIdPerURL: whitelistExportTriePerCpuIdPerURL)
     }
 }

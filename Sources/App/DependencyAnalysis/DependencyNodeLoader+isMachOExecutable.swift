@@ -4,6 +4,7 @@ extension DependencyNodeLoader {
     func isMachOFile(atURL url: URL) -> Bool {
         do {
             let nodes = try load(forURL: url)
+//            print("__> MachO Nodes: \(nodes)")
             return !nodes.isEmpty
         } catch {
             return false
